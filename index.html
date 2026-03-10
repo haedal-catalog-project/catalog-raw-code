@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <title>웹 파이썬 터미널</title>
+    
+    <!-- 최신 PyScript 엔진 불러오기 -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.8.2/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.8.2/core.js"></script>
+</head>
+<body>
+    <h2>나의 MBTI 판독기</h2>
+    <p>아래 까만 터미널 화면을 클릭하고 타이핑해 보세요!</p>
+    
+    <!-- 파이썬 코드 (CSS 제거하여 원시 코드는 안 보이게 됨) -->
+    <script type="py" terminal worker>
+print("=== MBTI 판독기 ===")
+name = input("당신의 이름을 입력하세요: ")
+mbti = input(f"{name}님의 MBTI는 무엇인가요?: ")
+
+print(f"\n결과: {name}님은 {mbti}이시군요! 환영합니다.")
+    </script>
+</body>
+</html>
