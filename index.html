@@ -2,23 +2,102 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>웹 파이썬 터미널</title>
+    <title>파이썬 웹 터미널</title>
     
-    <!-- 최신 PyScript 엔진 불러오기 -->
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.8.2/core.css" />
-    <script type="module" src="https://pyscript.net/releases/2024.8.2/core.js"></script>
+    <!-- xterm.js 라이브러리 (CSS & JS) 불러오기 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    
+    <style>
+        body { 
+            background-color: #121212; 
+            color: white;
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin-top: 40px;
+        }
+        h2 { margin-bottom: 20px; color: #4CAF50; }
+        
+        /* 터미널 화면 껍데기 디자인 */
+        #terminal-container { 
+            width: 700px; 
+            height: 450px; 
+            padding: 10px;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+    </style>
 </head>
 <body>
-    <h2>나의 MBTI 판독기</h2>
-    <p>아래 까만 터미널 화면을 클릭하고 타이핑해 보세요!</p>
-    
-    <!-- 파이썬 코드 (CSS 제거하여 원시 코드는 안 보이게 됨) -->
-    <script type="py" terminal worker>
-print("=== MBTI 판독기 ===")
-name = input("당신의 이름을 입력하세요: ")
-mbti = input(f"{name}님의 MBTI는 무엇인가요?: ")
 
-print(f"\n결과: {name}님은 {mbti}이시군요! 환영합니다.")
+    <h2>💻 Python Web Console</h2>
+    
+    <!-- 터미널이 그려질 공간 -->
+    <div id="terminal-container"></div>
+
+    <script>
+        // 1. xterm.js 터미널 객체 생성 및 UI에 붙이기
+        const term = new Terminal({
+            cursorBlink: true,      // 커서 깜빡임 활성화
+            fontSize: 16,           // 폰트 크기
+            fontFamily: 'Consolas, "Courier New", monospace', // 개발자용 폰트
+            theme: { 
+                background: '#1e1e1e', // VS Code 기본 배경색 느낌
+                foreground: '#cccccc'
+            }
+        });
+        term.open(document.getElementById('terminal-container'));
+
+        // 2. FastAPI 웹소켓 서버와 연결
+        // location.host를 사용하면 localhost뿐만 아니라 실제 배포된 도메인에서도 자동 연결됩니다.
+        const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+        const ws = new WebSocket(wsProtocol + window.location.host + "/ws");
+
+        ws.onopen = () => {
+            term.write('\x1b[32m[시스템] 서버에 성공적으로 연결되었습니다.\x1b[0m\r\n\r\n');
+        };
+
+        ws.onclose = () => {
+            term.write('\r\n\x1b[31m[시스템] 서버와의 연결이 끊어졌습니다.\x1b[0m\r\n');
+        };
+
+        // 3. 백엔드(Python print)에서 온 메시지를 터미널 화면에 출력
+        ws.onmessage = (event) => {
+            term.write(event.data);
+        };
+
+        // 4. 사용자가 키보드를 칠 때 동작하는 로직 (Python input 역할)
+        let inputBuffer = ''; // 엔터를 치기 전까지 글자를 임시로 모아둘 버퍼
+
+        term.onKey(e => {
+            const ev = e.domEvent;
+            const printable = !ev.altKey && !ev.ctrlKey && !ev.metaKey; // 특수키 제외
+
+            if (ev.keyCode === 13) { 
+                // [엔터(Enter) 키]를 눌렀을 때
+                // 파이썬의 input()이 입력을 인식할 수 있도록 줄바꿈 기호(\n)를 붙여서 전송
+                ws.send(inputBuffer + '\n');
+                
+                term.write('\r\n'); // 웹 터미널 화면도 다음 줄로 넘김
+                inputBuffer = '';   // 버퍼 초기화
+                
+            } else if (ev.keyCode === 8) { 
+                //[백스페이스(Backspace) 키]를 눌렀을 때
+                if (inputBuffer.length > 0) {
+                    inputBuffer = inputBuffer.slice(0, -1); // 버퍼에서 마지막 글자 삭제
+                    term.write('\b \b'); // 화면에서도 한 글자 지우기 (뒤로가서 -> 공백덮고 -> 다시뒤로)
+                }
+                
+            } else if (printable) { 
+                // [일반 글자, 숫자, 기호]를 쳤을 때
+                term.write(e.key);     // 사용자가 친 글자를 화면에 보여줌 (에코)
+                inputBuffer += e.key;  // 서버로 보낼 버퍼에 글자 누적
+            }
+        });
     </script>
+
 </body>
 </html>
